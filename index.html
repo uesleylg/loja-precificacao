@@ -95,6 +95,13 @@
   .price-display{ text-align:center; margin:6px 0 14px; }
   .price-display .big{ font-family:'Oswald',sans-serif; font-size:40px; font-weight:700; }
   .price-display .tag{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-soft); }
+  .discount-tag{
+    display:flex; align-items:baseline; justify-content:center; gap:10px; margin:-6px 0 16px;
+    flex-wrap:wrap;
+  }
+  .discount-tag .strike{ font-size:14px; color:var(--ink-soft); text-decoration:line-through; text-decoration-color:var(--red); }
+  .discount-tag .final{ font-family:'Oswald',sans-serif; font-size:18px; font-weight:700; color:var(--green); }
+  .discount-tag .badge{ background:var(--red); color:var(--paper); font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:3px; }
 
   .breakdown{ font-size:13px; }
   .breakdown .line{ display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px dotted var(--line); }
@@ -192,8 +199,19 @@
       </div>
 
       <div class="price-display">
-        <div class="tag">preço de venda</div>
+        <div class="tag">preço de venda (o que você recebe é calculado sobre este valor)</div>
         <div class="big" id="priceBig">R$ 79,90</div>
+      </div>
+
+      <div class="field full" style="margin-top:4px;">
+        <label>Desconto anunciado (%) — 0 desativa</label>
+        <input type="number" id="discountPct" value="0" min="0" max="95" step="1"/>
+      </div>
+
+      <div id="discountTag" class="discount-tag" style="display:none;">
+        <span class="strike" id="crossedPrice">-</span>
+        <span class="final" id="discountFinalPrice">-</span>
+        <span class="badge" id="discountBadge">-</span>
       </div>
 
       <div class="breakdown">
@@ -230,6 +248,7 @@
         CPF alto volume (450+ pedidos/90 dias) soma R$3,00 fixo em cada faixa acima de R$12; entre R$8–12 a taxa é regressiva (aproximada por interpolação aqui) e abaixo de R$8 é uma estimativa não documentada oficialmente.
         <b>Validado em jul/2026</b> contra múltiplas fontes independentes e conteúdo em cache do Seller Education Hub oficial da Shopee — inclusive um exemplo numérico oficial (item de R$6 → R$3 de taxa fixa + R$1,20 de comissão = R$4,20) que confere com a fórmula usada aqui.
         <b>Não incluído:</b> taxa de campanha de destaque (+2,5% temporário em promoções), taxa de saque a partir da 2ª retirada do mês (R$3), impostos e frete real.
+        <b>Sobre o desconto anunciado:</b> o preço "de" é só o valor riscado exibido na vitrine — as taxas da Shopee e o imposto incidem sempre sobre o preço final (o que o cliente realmente paga). Vale lembrar que a Shopee modera preços "de/por" artificiais, e o CDC também trata isso como prática enganosa se o valor "de" nunca foi praticado de verdade — use com preços que você já cobrou antes.
       </div>
 
     </div>
@@ -241,6 +260,7 @@
   const costEl = document.getElementById('cost');
   const marginEl = document.getElementById('targetMargin');
   const taxEl = document.getElementById('taxPct');
+  const discountEl = document.getElementById('discountPct');
   const sellerSeg = document.getElementById('sellerSeg');
   const slider = document.getElementById('priceSlider');
   let seller = 'cnpj';
@@ -298,11 +318,26 @@
     return v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
   }
 
+  function renderDiscountTag(price){
+    const discountPct = parseFloat(discountEl.value) || 0;
+    const box = document.getElementById('discountTag');
+    if(discountPct <= 0 || discountPct >= 100){
+      box.style.display = 'none';
+      return;
+    }
+    const crossed = price / (1 - discountPct/100);
+    document.getElementById('crossedPrice').textContent = brl(crossed);
+    document.getElementById('discountFinalPrice').textContent = brl(price);
+    document.getElementById('discountBadge').textContent = '-' + discountPct.toFixed(0) + '%';
+    box.style.display = 'flex';
+  }
+
   function renderBreakdown(price){
     const cost = parseFloat(costEl.value) || 0;
     const taxPct = currentTaxPct();
     const c = calc(price, seller, taxPct);
     document.getElementById('priceBig').textContent = brl(price);
+    renderDiscountTag(price);
     document.getElementById('commRate').textContent = (c.commRate*100).toFixed(0) + '%';
     document.getElementById('commVal').textContent = brl(c.commVal);
     document.getElementById('fixedVal').textContent = brl(c.fixed);
@@ -468,6 +503,7 @@
   costEl.addEventListener('input', renderAll);
   marginEl.addEventListener('input', renderRecommendation);
   taxEl.addEventListener('input', renderAll);
+  discountEl.addEventListener('input', ()=> renderDiscountTag(parseFloat(slider.value)));
 
   renderAll();
 })();
